@@ -26,7 +26,8 @@ class ReplicatorState(TypedDict):
     requirements: str
     file_tree: str
     introduction: str            # LLM: what this project is
-    preview: dict                # LLM: key files and architecture
+    file_breakdown: list         # LLM: per-file explanation
+    preview: dict                # LLM: architecture overview
     reproduction_plan: list      # LLM: step-by-step plan
     train_entrypoint: str        # e.g. "train.py"
     code_summary: str            # full LLM JSON output

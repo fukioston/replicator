@@ -8,13 +8,14 @@ analyze_code: LLM analyzes the repo and produces:
 
 import json
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 
 from state import ReplicatorState
 from llm.client import build_llm
 from llm.prompts import ANALYZE_REPO_SYSTEM, ANALYZE_REPO_USER
 
 
-def analyze_code(state: ReplicatorState, config: dict) -> dict:
+def analyze_code(state: ReplicatorState, config: RunnableConfig) -> dict:
     llm = build_llm(config["configurable"]["replicator_config"])
 
     prompt = ANALYZE_REPO_USER.format(
@@ -40,6 +41,7 @@ def analyze_code(state: ReplicatorState, config: dict) -> dict:
 
     return {
         "introduction": data.get("introduction", ""),
+        "file_breakdown": data.get("file_breakdown", []),
         "preview": data.get("preview", {}),
         "reproduction_plan": data.get("reproduction_plan", []),
         "train_entrypoint": data.get("train_entrypoint", ""),

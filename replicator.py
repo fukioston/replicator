@@ -81,6 +81,12 @@ def main():
             console.print(f"\n[green]✓ Analysis complete[/green]")
             if state.get("introduction"):
                 console.print(Panel(state["introduction"], title="Introduction"))
+            if state.get("file_breakdown"):
+                files_md = "\n\n".join(
+                    f"**`{f['path']}`** — {f['role']}\n{f.get('description', '')}"
+                    for f in state["file_breakdown"]
+                )
+                console.print(Panel(Markdown(files_md), title="File Breakdown"))
             if state.get("reproduction_plan"):
                 plan_md = "\n".join(
                     f"{s['step']}. **{s['action']}**" + (f"\n   `{s['command']}`" if s.get('command') else "")
