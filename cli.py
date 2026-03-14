@@ -81,9 +81,10 @@ def show(name: str = typer.Argument(..., help="Task name")):
 def restart(
     name: str = typer.Option(..., "-n", help="Task name to restart"),
 ):
-    """Restart a task from scratch (creates a new run, preserving history)."""
+    """Restart a task from scratch, clearing all checkpoint history."""
     from setup_config import load_config
-    from tasks import load_tasks, increment_run_id
+    from tasks import load_tasks, upsert_task
+    from graph import clear_checkpoint
 
     config = load_config()
     workspace = str(Path(config["workspace_dir"]).expanduser())
@@ -92,8 +93,9 @@ def restart(
         typer.echo(f"Task '{name}' not found.")
         raise typer.Exit(1)
 
-    new_id = increment_run_id(workspace, name)
-    typer.echo(f"✓ Task '{name}' reset (run #{new_id})")
+    clear_checkpoint(workspace, name)
+    upsert_task(workspace, name, {"status": "pending", "phase": "", "error": "", "diagnosis": "", "quick_run_success": False})
+    typer.echo(f"✓ Task '{name}' reset — checkpoint cleared.")
     typer.echo(f"  Run with: replicator run -n {name}")
 
 

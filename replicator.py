@@ -8,7 +8,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from graph import build_graph
-from tasks import upsert_task, get_run_id
+from tasks import upsert_task
 
 console = Console()
 
@@ -35,12 +35,9 @@ def run_task(task_name: str, config: dict):
         return
 
     repo_url = task["repo_url"]
-    run_id = task.get("run_id", 0)
-    thread_id = f"{task_name}_{run_id}"
-
     graph_config = {
         "configurable": {
-            "thread_id": thread_id,
+            "thread_id": task_name,
             "replicator_config": config,
         }
     }

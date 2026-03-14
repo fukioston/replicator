@@ -49,6 +49,20 @@ def handle_error(state: ReplicatorState) -> dict:
 
 # -- Graph --
 
+def clear_checkpoint(workspace_dir: str, thread_id: str):
+    """Delete all checkpoint data for a given thread_id."""
+    db_path = str(Path(workspace_dir).expanduser() / "replicator.db")
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    for table in ("checkpoints", "checkpoint_blobs", "checkpoint_writes"):
+        try:
+            cur.execute(f"DELETE FROM {table} WHERE thread_id = ?", (thread_id,))
+        except sqlite3.OperationalError:
+            pass  # table may not exist yet
+    conn.commit()
+    conn.close()
+
+
 def build_graph(workspace_dir: str):
     db_path = str(Path(workspace_dir).expanduser() / "replicator.db")
     conn = sqlite3.connect(db_path, check_same_thread=False)
