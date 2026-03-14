@@ -100,6 +100,12 @@ def main():
                 console.print(f"\n[cyan]✓ Cloned[/cyan] → {state.get('repo_local_path', '')}")
                 upsert_task(workspace, repo_name, {"phase": "clone_and_read", "status": "in_progress"})
 
+            elif node == "identify_key_files":
+                key_files = state.get("key_files") or []
+                if key_files:
+                    console.print(f"[cyan]✓ Key files:[/cyan] {', '.join(key_files)}")
+                upsert_task(workspace, repo_name, {"phase": "identify_key_files", "status": "in_progress"})
+
             elif node == "analyze_code":
                 console.print(f"\n[green]✓ Analysis complete[/green]")
                 if state.get("introduction"):

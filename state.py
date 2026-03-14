@@ -20,11 +20,17 @@ class ReplicatorState(TypedDict):
     ssh_key_path: str
     remote_workdir: str          # remote experiment dir (SSH mode)
 
-    # -- Phase 1: Repo analysis --
+    # -- Phase 1a: Clone & read --
     repo_local_path: str         # local clone path
     readme: str
     requirements: str
-    file_tree: str
+    file_tree: str               # filtered file tree
+
+    # -- Phase 1b: Key file identification --
+    key_files: list              # LLM-selected important files
+    file_contents: dict          # {path: content} of key files
+
+    # -- Phase 1c: Deep analysis --
     introduction: str            # LLM: what this project is
     file_breakdown: list         # LLM: per-file explanation
     preview: dict                # LLM: architecture overview

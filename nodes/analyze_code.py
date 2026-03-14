@@ -26,12 +26,23 @@ def analyze_code(state: ReplicatorState, config: RunnableConfig) -> dict:
     llm = build_llm(replicator_config)
     output_language = replicator_config.get("output_language", "English")
 
+    # Format key file contents for the prompt
+    file_contents = state.get("file_contents") or {}
+    if file_contents:
+        contents_str = "\n\n".join(
+            f"=== {path} ===\n{content}"
+            for path, content in file_contents.items()
+        )
+    else:
+        contents_str = "(no source files read)"
+
     system = ANALYZE_REPO_SYSTEM.format(output_language=output_language)
     prompt = ANALYZE_REPO_USER.format(
         repo_url=state["repo_url"],
         readme=state["readme"] or "(no README found)",
         file_tree=state["file_tree"],
         requirements=state["requirements"] or "(no requirements file found)",
+        file_contents=contents_str,
     )
 
     # Stream tokens and display live

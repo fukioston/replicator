@@ -1,3 +1,30 @@
+IDENTIFY_FILES_SYSTEM = """You are an ML research engineer. Given a repository's README and file tree, identify the most important files to read for understanding and reproducing the project.
+
+Always respond in valid JSON."""
+
+IDENTIFY_FILES_USER = """Repository: {repo_url}
+
+README:
+{readme}
+
+File tree:
+{file_tree}
+
+Which files are most important for understanding and reproducing this project?
+Respond with JSON:
+{{
+  "key_files": ["train.py", "model.py", "config.yaml"],
+  "reason": "brief explanation of why these files matter"
+}}
+
+Rules:
+- Maximum 8 files
+- Only include files that actually appear in the file tree
+- Prioritize: training entry point, model definition, config files, data loading
+- Skip: tests, docs, README (already provided)
+"""
+
+
 ANALYZE_REPO_SYSTEM = """You are an ML research engineer specializing in reproducing academic papers.
 Given information about a GitHub repository, you will:
 1. Understand what the paper/project is about
@@ -16,6 +43,9 @@ File tree:
 
 Requirements:
 {requirements}
+
+Key source files:
+{file_contents}
 
 Analyze this repository and respond with JSON in exactly this format:
 {{
