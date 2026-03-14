@@ -40,10 +40,33 @@ def upsert_task(workspace_dir: str, repo_name: str, updates: dict):
     save_tasks(workspace_dir, tasks)
 
 
+def show_task(workspace_dir: str, task_name: str):
+    tasks = load_tasks(workspace_dir)
+    t = tasks.get(task_name)
+    if not t:
+        console.print(f"[red]Task '{task_name}' not found.[/red]")
+        return
+    from rich.panel import Panel
+    from rich.markdown import Markdown
+    lines = [
+        f"**Name:** {task_name}",
+        f"**Repo:** {t.get('repo_url', '—')}",
+        f"**Status:** {t.get('status', '—')}",
+        f"**Phase:** {t.get('phase', '—')}",
+        f"**Created:** {t.get('created_at', '—')}",
+        f"**Updated:** {t.get('updated_at', '—')}",
+    ]
+    if t.get("introduction"):
+        lines += ["", "**Introduction:**", t["introduction"]]
+    if t.get("error"):
+        lines += ["", f"**Error:** {t['error']}"]
+    console.print(Panel(Markdown("\n".join(lines)), title=f"Task: {task_name}"))
+
+
 def list_tasks(workspace_dir: str):
     tasks = load_tasks(workspace_dir)
     if not tasks:
-        console.print("[yellow]No tasks yet. Run with --repo to start one.[/yellow]")
+        console.print("[yellow]No tasks yet. Use `replicator create -n <name> --repo <url>` to start one.[/yellow]")
         return
 
     table = Table(title="Replicator Tasks", show_lines=True)

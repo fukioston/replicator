@@ -1,49 +1,28 @@
-#!/usr/bin/env python3
 """
-Replicator — autonomous ML paper reproduction agent.
-Usage:
-  python replicator.py --repo https://github.com/author/repo
-  python replicator.py --list
+Core task runner — called by cli.py.
 """
 
-import argparse
 from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
-from setup_config import load_config
 from graph import build_graph
-from tasks import upsert_task, list_tasks
+from tasks import upsert_task
 
 console = Console()
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Replicator: autonomous ML paper reproduction agent")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--repo", help="GitHub repository URL to analyze")
-    group.add_argument("--list", action="store_true", help="List all tracked tasks")
-    parser.add_argument("--setup", action="store_true", help="Re-run setup wizard")
-    args = parser.parse_args()
-
-    # Load or run setup
-    if args.setup:
-        from setup_config import run_setup
-        config = run_setup()
-    else:
-        config = load_config()
-
+def run_task(task_name: str, config: dict):
+    """Run the full analysis pipeline for a named task."""
     workspace = str(Path(config["workspace_dir"]).expanduser())
+    tasks = _load_task(workspace, task_name)
 
-    # --list mode
-    if args.list:
-        list_tasks(workspace)
+    if not tasks:
+        console.print(f"[red]Task '{task_name}' not found. Run `replicator create -n {task_name} --repo <url>` first.[/red]")
         return
 
-    # --repo mode
-    repo_url = args.repo
-    repo_name = repo_url.rstrip("/").split("/")[-1].removesuffix(".git")
+    repo_url = tasks["repo_url"]
 
     initial_state = {
         "repo_url": repo_url,
@@ -51,11 +30,13 @@ def main():
         "ssh_host": config.get("ssh_host", ""),
         "ssh_user": config.get("ssh_user", ""),
         "ssh_key_path": config.get("ssh_key_path", ""),
-        "remote_workdir": f"{workspace}/runs/{repo_name}",
+        "remote_workdir": f"{workspace}/runs/{task_name}",
         "repo_local_path": "",
         "readme": "",
         "requirements": "",
         "file_tree": "",
+        "key_files": [],
+        "file_contents": {},
         "introduction": "",
         "file_breakdown": [],
         "preview": {},
@@ -75,19 +56,14 @@ def main():
 
     graph_config = {
         "configurable": {
-            "thread_id": repo_name,
+            "thread_id": task_name,
             "replicator_config": config,
         }
     }
 
-    console.print(Panel(f"[bold]Replicator[/bold]\nRepo: {repo_url}", expand=False))
+    console.print(Panel(f"[bold]Replicator[/bold]\nTask: {task_name}  |  Repo: {repo_url}", expand=False))
 
-    # Register task as in_progress
-    upsert_task(workspace, repo_name, {
-        "repo_url": repo_url,
-        "status": "in_progress",
-        "phase": "starting",
-    })
+    upsert_task(workspace, task_name, {"status": "in_progress", "phase": "starting"})
 
     app = build_graph(workspace)
 
@@ -98,13 +74,13 @@ def main():
 
             if node == "clone_and_read":
                 console.print(f"\n[cyan]✓ Cloned[/cyan] → {state.get('repo_local_path', '')}")
-                upsert_task(workspace, repo_name, {"phase": "clone_and_read", "status": "in_progress"})
+                upsert_task(workspace, task_name, {"phase": "clone_and_read", "status": "in_progress"})
 
             elif node == "identify_key_files":
                 key_files = state.get("key_files") or []
                 if key_files:
                     console.print(f"[cyan]✓ Key files:[/cyan] {', '.join(key_files)}")
-                upsert_task(workspace, repo_name, {"phase": "identify_key_files", "status": "in_progress"})
+                upsert_task(workspace, task_name, {"phase": "identify_key_files", "status": "in_progress"})
 
             elif node == "analyze_code":
                 console.print(f"\n[green]✓ Analysis complete[/green]")
@@ -123,7 +99,7 @@ def main():
                     )
                     console.print(Panel(Markdown(plan_md), title="Reproduction Plan"))
 
-                upsert_task(workspace, repo_name, {
+                upsert_task(workspace, task_name, {
                     "phase": "analyze_code",
                     "status": "done",
                     "introduction": (state.get("introduction") or "")[:200],
@@ -131,7 +107,7 @@ def main():
 
             elif node == "handle_error":
                 console.print(f"\n[red]✗ Error[/red] in phase '{state.get('phase')}': {state.get('error')}")
-                upsert_task(workspace, repo_name, {
+                upsert_task(workspace, task_name, {
                     "phase": state.get("phase", ""),
                     "status": "failed",
                     "error": state.get("error", ""),
@@ -139,8 +115,9 @@ def main():
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted.[/yellow]")
-        upsert_task(workspace, repo_name, {"status": "in_progress"})
+        upsert_task(workspace, task_name, {"status": "in_progress"})
 
 
-if __name__ == "__main__":
-    main()
+def _load_task(workspace: str, task_name: str) -> dict:
+    from tasks import load_tasks
+    return load_tasks(workspace).get(task_name, {})
