@@ -41,9 +41,12 @@ class ReplicatorState(TypedDict):
     # -- Phase 2: Environment setup --
     env_setup_log: str
     env_ready: bool
+    env_activate_prefix: str     # e.g. "conda run -n myenv" or ""
 
     # -- Phase 3: Quick run --
     quick_run_cmd: str           # command planned by LLM
+    required_inputs: list        # [{name, description, env_var, required}]
+    user_inputs: dict            # {ENV_VAR: value} collected from user
     quick_run_log: str           # combined stdout/stderr
     quick_run_success: bool      # True if first step confirmed
     diagnosis: str               # LLM error analysis (if failed)

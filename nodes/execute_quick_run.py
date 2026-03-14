@@ -56,6 +56,15 @@ def execute_quick_run(state: ReplicatorState, config: RunnableConfig) -> dict:
 
     env = os.environ.copy()
 
+    # Inject user-provided inputs as environment variables
+    user_inputs = state.get("user_inputs") or {}
+    env.update(user_inputs)
+
+    # Prepend env activation prefix (e.g. "conda run -n myenv")
+    env_prefix = state.get("env_activate_prefix", "").strip()
+    if env_prefix:
+        cmd = f"{env_prefix} {cmd}"
+
     try:
         proc = subprocess.Popen(
             cmd,

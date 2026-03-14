@@ -1,56 +1,95 @@
 """
-setup_env: install repo dependencies into the current Python environment.
+setup_env: LLM reads README and generates environment setup commands, then executes them.
+Supports conda, venv, and plain pip workflows.
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from rich.console import Console
 
 from state import ReplicatorState
+from llm.client import build_llm
+from llm.prompts import SETUP_ENV_SYSTEM, SETUP_ENV_USER
 
 console = Console()
 
 
 def setup_env(state: ReplicatorState, config: RunnableConfig) -> dict:
+    replicator_config = config["configurable"]["replicator_config"]
+    llm = build_llm(replicator_config)
     repo_path = Path(state["repo_local_path"])
+
+    # List requirements files present
+    req_names = [
+        name for name in [
+            "requirements.txt", "requirements-dev.txt",
+            "environment.yml", "environment.yaml",
+            "setup.py", "pyproject.toml",
+        ]
+        if (repo_path / name).exists()
+    ]
+    req_files_str = "\n".join(req_names) if req_names else "(none found)"
+
+    prompt = SETUP_ENV_USER.format(
+        readme=state.get("readme") or "(no README found)",
+        req_files=req_files_str,
+    )
+
+    with console.status("[cyan]Planning environment setup...[/cyan]"):
+        response = llm.invoke([
+            SystemMessage(content=SETUP_ENV_SYSTEM),
+            HumanMessage(content=prompt),
+        ])
+
+    try:
+        text = response.content.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+        data = json.loads(text)
+    except (json.JSONDecodeError, IndexError) as e:
+        return {"error": f"setup_env: invalid JSON from LLM: {e}", "phase": "setup_env"}
+
+    commands = data.get("commands", [])
+    python_prefix = data.get("python_prefix", "")
+    notes = data.get("notes", "")
+
+    if notes:
+        console.print(f"[dim]{notes}[/dim]")
+
+    if not commands:
+        console.print("[dim]No setup commands needed.[/dim]")
+        return {"env_setup_log": "", "env_ready": True, "env_activate_prefix": "", "phase": "setup_env"}
+
     logs = []
-
-    install_targets = []
-    for req_file in ["requirements.txt", "requirements-dev.txt"]:
-        if (repo_path / req_file).exists():
-            install_targets.append(("-r", req_file))
-
-    has_package = (repo_path / "setup.py").exists() or (repo_path / "pyproject.toml").exists()
-
-    if not install_targets and not has_package:
-        console.print("[dim]No requirements file found, skipping env setup.[/dim]")
-        return {"env_setup_log": "(no requirements file found)", "env_ready": True, "phase": "setup_env"}
-
-    with console.status("[cyan]Installing dependencies...[/cyan]"):
-        for flag, target in install_targets:
-            cmd = [sys.executable, "-m", "pip", "install", flag, target, "--quiet", "--no-warn-script-location"]
-            logs.append(f"$ pip install {flag} {target}")
-            result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, timeout=300)
+    with console.status("[cyan]Setting up environment...[/cyan]"):
+        for cmd in commands:
+            console.print(f"[dim]$ {cmd}[/dim]")
+            logs.append(f"$ {cmd}")
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=600,
+            )
             if result.stdout.strip():
                 logs.append(result.stdout.strip())
             if result.stderr.strip():
                 logs.append(result.stderr.strip())
+            if result.returncode != 0:
+                console.print(f"[yellow]⚠ Command exited {result.returncode} (continuing)[/yellow]")
 
-        if has_package:
-            cmd = [sys.executable, "-m", "pip", "install", "-e", ".", "--quiet", "--no-warn-script-location"]
-            logs.append("$ pip install -e .")
-            result = subprocess.run(cmd, cwd=repo_path, capture_output=True, text=True, timeout=300)
-            if result.stdout.strip():
-                logs.append(result.stdout.strip())
-            if result.stderr.strip():
-                logs.append(result.stderr.strip())
-
-    console.print("[green]✓ Environment ready[/green]")
+    console.print(f"[green]✓ Environment ready[/green]" + (f" (prefix: {python_prefix})" if python_prefix else ""))
     return {
         "env_setup_log": "\n".join(logs),
         "env_ready": True,
+        "env_activate_prefix": python_prefix,
         "phase": "setup_env",
+        "error": "",
     }

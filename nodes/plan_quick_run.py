@@ -13,6 +13,7 @@ from state import ReplicatorState
 from llm.client import build_llm
 from llm.prompts import PLAN_QUICK_RUN_SYSTEM, PLAN_QUICK_RUN_USER
 
+
 console = Console()
 
 
@@ -54,25 +55,22 @@ def plan_quick_run(state: ReplicatorState, config: RunnableConfig) -> dict:
 
     cmd = data.get("cmd", "")
     cwd = data.get("cwd", ".")
-    env_vars = data.get("env_vars") or {}
+    required_inputs = data.get("required_inputs") or []
     rationale = data.get("rationale", "")
 
-    # Embed cwd into cmd string as a prefix if non-trivial
     full_cmd = cmd
     if cwd and cwd != ".":
         full_cmd = f"cd {cwd} && {cmd}"
 
-    # Serialize env_vars into the cmd for storage/display
-    if env_vars:
-        env_prefix = " ".join(f"{k}={v}" for k, v in env_vars.items())
-        full_cmd = f"{env_prefix} {full_cmd}"
-
     console.print(f"[cyan]Quick run command:[/cyan] {full_cmd}")
     if rationale:
         console.print(f"[dim]{rationale}[/dim]")
+    if required_inputs:
+        console.print(f"[yellow]Needs {len(required_inputs)} input(s) from user[/yellow]")
 
     return {
         "quick_run_cmd": full_cmd,
+        "required_inputs": required_inputs,
         "phase": "plan_quick_run",
         "error": "",
     }

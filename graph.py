@@ -9,6 +9,7 @@ from nodes.identify_key_files import identify_key_files
 from nodes.analyze_code import analyze_code
 from nodes.setup_env import setup_env
 from nodes.plan_quick_run import plan_quick_run
+from nodes.gather_user_inputs import gather_user_inputs
 from nodes.execute_quick_run import execute_quick_run
 from nodes.diagnose_error import diagnose_error
 
@@ -32,7 +33,7 @@ def route_after_setup(state: ReplicatorState) -> str:
 
 
 def route_after_plan(state: ReplicatorState) -> str:
-    return "handle_error" if _has_error(state) else "execute_quick_run"
+    return "handle_error" if _has_error(state) else "gather_user_inputs"
 
 
 def route_after_execute(state: ReplicatorState) -> str:
@@ -60,6 +61,7 @@ def build_graph(workspace_dir: str):
     g.add_node("analyze_code", analyze_code)
     g.add_node("setup_env", setup_env)
     g.add_node("plan_quick_run", plan_quick_run)
+    g.add_node("gather_user_inputs", gather_user_inputs)
     g.add_node("execute_quick_run", execute_quick_run)
     g.add_node("diagnose_error", diagnose_error)
     g.add_node("handle_error", handle_error)
@@ -70,6 +72,7 @@ def build_graph(workspace_dir: str):
     g.add_conditional_edges("analyze_code", route_after_analyze)
     g.add_conditional_edges("setup_env", route_after_setup)
     g.add_conditional_edges("plan_quick_run", route_after_plan)
+    g.add_edge("gather_user_inputs", "execute_quick_run")
     g.add_conditional_edges("execute_quick_run", route_after_execute)
     g.add_edge("diagnose_error", END)
     g.add_edge("handle_error", END)

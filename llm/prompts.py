@@ -25,7 +25,38 @@ Rules:
 """
 
 
+SETUP_ENV_SYSTEM = """You are a DevOps engineer. Given a README and the list of requirements files present, generate the exact shell commands to set up the project environment.
+
+Always respond in valid JSON."""
+
+SETUP_ENV_USER = """README:
+{readme}
+
+Requirements files present in repo:
+{req_files}
+
+Generate environment setup commands. Respond with JSON:
+{{
+  "commands": [
+    "conda create -n myenv python=3.9 -y",
+    "conda run -n myenv pip install -r requirements.txt"
+  ],
+  "python_prefix": "conda run -n myenv",
+  "notes": "brief explanation"
+}}
+
+Rules:
+- If README mentions conda or environment.yml, use conda; otherwise use pip into the current environment
+- python_prefix is prepended when running training commands (e.g. "conda run -n myenv" or "" for current env)
+- Only include commands needed to install dependencies — no git clone, no cd into repo
+- If conda env name is not specified in README, use "replicator-env"
+- Keep it minimal
+"""
+
+
 PLAN_QUICK_RUN_SYSTEM = """You are an ML research engineer. Your goal is to find the minimum command to verify a project runs without errors — not to complete training, just to confirm the code executes successfully.
+
+Also identify any external inputs the user must provide (API keys, dataset paths, credentials, etc).
 
 Always respond in valid JSON."""
 
@@ -46,14 +77,27 @@ Respond with JSON:
 {{
   "cmd": "python train.py --max_steps 2 --batch_size 4",
   "cwd": ".",
-  "env_vars": {{}},
+  "required_inputs": [
+    {{
+      "name": "OpenAI API Key",
+      "description": "Used to call GPT-4 during training",
+      "env_var": "OPENAI_API_KEY",
+      "required": true
+    }},
+    {{
+      "name": "Dataset path",
+      "description": "Path to the training dataset directory",
+      "env_var": "DATA_DIR",
+      "required": false
+    }}
+  ],
   "rationale": "why this is the minimal command that proves the code runs"
 }}
 
 Rules:
 - cwd is relative to the repo root
-- env_vars only if strictly required (e.g. CUDA_VISIBLE_DEVICES=\\"\\")
-- If no obvious flags exist, run with defaults and set a timeout
+- required_inputs: only include things that must come from the user (API keys, dataset URLs, credentials, paths). Leave empty [] if nothing is needed.
+- required=true means the run will definitely fail without it; false means optional/has a default
 - Prefer CPU-friendly settings if possible
 """
 
