@@ -36,6 +36,8 @@ def run_task(task_name: str, config: dict):
         return
 
     repo_url = task["repo_url"]
+    lang = config.get("output_language", "English")
+
     graph_config = {
         "configurable": {
             "thread_id": task_name,
@@ -82,7 +84,7 @@ def run_task(task_name: str, config: dict):
         # No checkpoint — fresh start
         console.print(Panel(f"[bold]Replicator[/bold]\nTask: {task_name}  |  Repo: {repo_url}", expand=False))
         upsert_task(workspace, task_name, {"status": "in_progress", "phase": "starting"})
-        init_report(workspace, task_name, repo_url)
+        init_report(workspace, task_name, repo_url, lang)
         iterator = app.stream(_make_initial_state(task_name, repo_url, workspace, config), config=graph_config)
 
     # -- Stream nodes --
@@ -124,19 +126,19 @@ def run_task(task_name: str, config: dict):
 
                 # Write to report
                 if intro:
-                    update_report(workspace, task_name, "Introduction", intro)
+                    update_report(workspace, task_name, "Introduction", intro, lang)
                 if breakdown:
                     bd_md = "\n".join(
                         f"- **`{f['path']}`** — {f['role']}: {f.get('description', '')}"
                         for f in breakdown
                     )
-                    update_report(workspace, task_name, "File Breakdown", bd_md)
+                    update_report(workspace, task_name, "File Breakdown", bd_md, lang)
                 if plan:
                     pl_md = "\n".join(
                         f"{s['step']}. **{s['action']}**" + (f": `{s['command']}`" if s.get('command') else "")
                         for s in plan
                     )
-                    update_report(workspace, task_name, "Reproduction Plan", pl_md)
+                    update_report(workspace, task_name, "Reproduction Plan", pl_md, lang)
 
                 upsert_task(workspace, task_name, {
                     "phase": "analyze_code",
@@ -159,7 +161,7 @@ def run_task(task_name: str, config: dict):
                 status = "done" if success else "failed"
                 cmd = state.get("quick_run_cmd", "")
                 result_line = f"**Command:** `{cmd}`\n\n**Result:** {'✓ Success — code confirmed running' if success else '✗ Failed'}"
-                update_report(workspace, task_name, "Quick Run", result_line)
+                update_report(workspace, task_name, "Quick Run", result_line, lang)
                 upsert_task(workspace, task_name, {
                     "phase": "execute_quick_run",
                     "status": status,
@@ -170,7 +172,7 @@ def run_task(task_name: str, config: dict):
             elif node == "diagnose_error":
                 diagnosis = state.get("diagnosis", "")
                 if diagnosis:
-                    update_report(workspace, task_name, "Error Diagnosis", diagnosis)
+                    update_report(workspace, task_name, "Error Diagnosis", diagnosis, lang)
                 upsert_task(workspace, task_name, {
                     "phase": "diagnose_error",
                     "status": "failed",
@@ -181,7 +183,7 @@ def run_task(task_name: str, config: dict):
                 error = state.get("error", "")
                 phase = state.get("phase", "")
                 console.print(f"\n[red]✗ Error[/red] in phase '{phase}': {error}")
-                update_report(workspace, task_name, "Error", f"**Phase:** {phase}\n\n{error}")
+                update_report(workspace, task_name, "Error", f"**Phase:** {phase}\n\n{error}", lang)
                 upsert_task(workspace, task_name, {
                     "phase": phase,
                     "status": "failed",
