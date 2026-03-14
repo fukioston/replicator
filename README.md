@@ -1,5 +1,7 @@
 # Replicator
 
+> ⚠️ Work in progress. Not ready for use yet.
+
 > Give it a GitHub link. It figures out the rest.
 
 Replicator is an autonomous agent that takes an ML research paper repository and automatically clones it, understands the codebase, sets up the environment, reproduces the results, and iterates on experiments — all with minimal human intervention.
