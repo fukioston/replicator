@@ -38,8 +38,10 @@ Replicator 把这些都自动化掉。
 
 - [x] **仓库分析** — 克隆仓库，解析 README、依赖文件、目录结构
 - [x] **代码理解** — LLM 生成项目介绍、逐文件说明、复现计划
-- [ ] **环境搭建** — 自动安装依赖，处理版本冲突
-- [ ] **实验提交** — 本地或 SSH 远程运行（支持 `nohup` / `sbatch` / `torchrun`）
+- [x] **环境搭建** — LLM 读 README，自动执行正确的搭建命令（conda / venv / pip）
+- [x] **快速验证** — LLM 生成最小可跑命令（最少数据/步数），向用户收集 API Key 等信息，确认代码跑通后自动终止
+- [x] **错误诊断** — 跑失败时 LLM 分析报错并给出修复建议
+- [ ] **完整实验提交** — 本地或 SSH 远程运行（支持 `nohup` / `sbatch` / `torchrun`）
 - [ ] **任务监控** — 心跳轮询，检测完成或崩溃
 - [ ] **结果分析** — 解析日志、指标、loss 曲线
 - [ ] **实验设计** — LLM 根据结果建议下一组超参数
@@ -61,39 +63,48 @@ Replicator 把这些都自动化掉。
 ```sh
 git clone https://github.com/fukioston/replicator
 cd replicator
-pip install -r requirements.txt
+pip install -e .
 
-# 首次运行会启动交互式配置向导
-python replicator.py --repo https://github.com/karpathy/micrograd
+# 运行配置向导（选择 LLM 厂商、填 API Key、设置输出语言）
+replicator config
+
+# 创建任务
+replicator create -n my-exp --repo https://github.com/karpathy/micrograd
+
+# 运行分析 + 快速验证
+replicator run -n my-exp
+
+# 查看所有任务
+replicator list
+
+# 查看任务详情
+replicator show my-exp
 ```
 
 配置向导会询问：
-- 在哪里运行实验（本地 / SSH 远程服务器）
 - 克隆仓库和实验输出存放位置
 - 使用哪个 LLM 厂商和 API Key
 - 分析报告的输出语言（中文 / English / 日本語）
-
-重新运行配置向导：
-```sh
-python replicator.py --repo <url> --setup
-```
 
 ## 项目结构
 
 ```
 replicator/
-├── replicator.py        # CLI 入口 + 配置向导触发
+├── cli.py               # CLI 入口（typer 子命令）
+├── replicator.py        # 任务执行器，连接图与 CLI
 ├── graph.py             # LangGraph 图结构和路由
 ├── state.py             # ReplicatorState 状态定义
 ├── setup_config.py      # 交互式配置向导
+├── tasks.py             # 任务持久化（tasks.json）
 ├── nodes/
 │   ├── clone_and_read.py      # 克隆仓库 + 读取 README/依赖/目录树
+│   ├── identify_key_files.py  # LLM 识别重要文件
 │   ├── analyze_code.py        # LLM 生成介绍、逐文件说明、复现计划
-│   ├── setup_environment.py   # （开发中）
-│   ├── submit_job.py          # （开发中）
-│   ├── heartbeat_monitor.py   # （开发中）
-│   ├── analyze_results.py     # （开发中）
-│   └── design_experiment.py   # （开发中）
+│   ├── setup_env.py           # LLM 指导环境搭建（conda/venv/pip）
+│   ├── plan_quick_run.py      # LLM 生成最小可跑命令
+│   ├── gather_user_inputs.py  # 交互式收集 API Key、数据集路径等
+│   ├── execute_quick_run.py   # 执行命令，确认跑通后自动终止
+│   └── diagnose_error.py      # LLM 分析报错并给出修复建议
 ├── remote/
 │   ├── base.py          # 抽象执行器接口
 │   ├── local.py         # 本地 subprocess 执行器

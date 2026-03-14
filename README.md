@@ -38,8 +38,10 @@ Replicator handles all of this autonomously.
 
 - [x] **Repo analysis** — clone repo, parse README, requirements, and file structure
 - [x] **Code understanding** — LLM generates introduction, per-file breakdown, and reproduction plan
-- [ ] **Environment setup** — auto-install dependencies, handle version conflicts
-- [ ] **Experiment runner** — submit training jobs locally or via SSH (`nohup` / `sbatch` / `torchrun`)
+- [x] **Environment setup** — LLM reads README and runs correct setup commands (conda / venv / pip)
+- [x] **Quick run** — LLM plans minimal command (smallest data/steps), asks user for API keys, confirms code runs, kills after first step
+- [x] **Error diagnosis** — if run fails, LLM analyzes traceback and suggests fixes
+- [ ] **Full experiment runner** — submit training jobs locally or via SSH (`nohup` / `sbatch` / `torchrun`)
 - [ ] **Job monitor** — heartbeat polling, detect completion or crash
 - [ ] **Result analysis** — parse logs, metrics, loss curves
 - [ ] **Experiment designer** — LLM-driven hyperparameter suggestions based on results
@@ -61,39 +63,48 @@ Replicator handles all of this autonomously.
 ```sh
 git clone https://github.com/fukioston/replicator
 cd replicator
-pip install -r requirements.txt
+pip install -e .
 
-# First run will launch an interactive setup wizard
-python replicator.py --repo https://github.com/karpathy/micrograd
+# Run the setup wizard (choose LLM provider, API key, output language)
+replicator config
+
+# Create a task
+replicator create -n my-exp --repo https://github.com/karpathy/micrograd
+
+# Run analysis + quick run
+replicator run -n my-exp
+
+# List all tasks
+replicator list
+
+# View task details
+replicator show my-exp
 ```
 
 The setup wizard will ask you:
-- Where to run experiments (local or SSH remote)
 - Where to store cloned repos and outputs
 - Which LLM provider and API key to use
 - Output language for analysis reports (中文 / English / 日本語)
-
-To re-run the setup wizard:
-```sh
-python replicator.py --repo <url> --setup
-```
 
 ## Architecture
 
 ```
 replicator/
-├── replicator.py        # CLI entry point + setup wizard trigger
+├── cli.py               # CLI entry point (typer subcommands)
+├── replicator.py        # task runner, wires graph to CLI
 ├── graph.py             # LangGraph graph definition and routing
 ├── state.py             # ReplicatorState TypedDict
 ├── setup_config.py      # interactive setup wizard
+├── tasks.py             # task persistence (tasks.json)
 ├── nodes/
-│   ├── clone_and_read.py   # git clone + read README/requirements/file tree
-│   ├── analyze_code.py     # LLM: generate introduction, file breakdown, plan
-│   ├── setup_environment.py   # (coming soon)
-│   ├── submit_job.py          # (coming soon)
-│   ├── heartbeat_monitor.py   # (coming soon)
-│   ├── analyze_results.py     # (coming soon)
-│   └── design_experiment.py   # (coming soon)
+│   ├── clone_and_read.py      # git clone + read README/requirements/file tree
+│   ├── identify_key_files.py  # LLM: pick important files to read
+│   ├── analyze_code.py        # LLM: introduction, file breakdown, reproduction plan
+│   ├── setup_env.py           # LLM-guided env setup (conda/venv/pip)
+│   ├── plan_quick_run.py      # LLM: minimal command to verify the code runs
+│   ├── gather_user_inputs.py  # interactive: ask user for API keys, dataset paths, etc.
+│   ├── execute_quick_run.py   # run the command, kill after first step confirmed
+│   └── diagnose_error.py      # LLM: analyze traceback and suggest fixes
 ├── remote/
 │   ├── base.py          # abstract runner interface
 │   ├── local.py         # local subprocess runner
