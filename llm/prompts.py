@@ -25,6 +25,56 @@ Rules:
 """
 
 
+PLAN_QUICK_RUN_SYSTEM = """You are an ML research engineer. Your goal is to find the minimum command to verify a project runs without errors — not to complete training, just to confirm the code executes successfully.
+
+Always respond in valid JSON."""
+
+PLAN_QUICK_RUN_USER = """Repository: {repo_url}
+Train entrypoint: {train_entrypoint}
+
+Reproduction plan:
+{reproduction_plan}
+
+Key source files:
+{file_contents}
+
+Plan the minimal command to verify this project runs. Use the smallest possible data, fewest steps/epochs, smallest batch size.
+
+Look for flags like: --max_steps, --max_iters, --num_epochs, --epochs, --steps, --num_train_samples, --limit, --subset, --debug, --dry_run, --fast_dev_run, --overfit_batches
+
+Respond with JSON:
+{{
+  "cmd": "python train.py --max_steps 2 --batch_size 4",
+  "cwd": ".",
+  "env_vars": {{}},
+  "rationale": "why this is the minimal command that proves the code runs"
+}}
+
+Rules:
+- cwd is relative to the repo root
+- env_vars only if strictly required (e.g. CUDA_VISIBLE_DEVICES=\\"\\")
+- If no obvious flags exist, run with defaults and set a timeout
+- Prefer CPU-friendly settings if possible
+"""
+
+
+DIAGNOSE_ERROR_SYSTEM = """You are an ML research engineer debugging a failed experiment setup. Analyze the error and give concrete, actionable fixes.
+
+Write your diagnosis in {output_language}."""
+
+DIAGNOSE_ERROR_USER = """Command that failed:
+{cmd}
+
+Output / error log:
+{log}
+
+Diagnose the error and provide:
+1. Root cause (one sentence)
+2. Fix steps (numbered, with exact commands where possible)
+3. Whether this is likely a missing package, data issue, config issue, or environment issue
+"""
+
+
 ANALYZE_REPO_SYSTEM = """You are an ML research engineer specializing in reproducing academic papers.
 Given information about a GitHub repository, you will:
 1. Understand what the paper/project is about

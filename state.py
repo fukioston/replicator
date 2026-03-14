@@ -38,11 +38,17 @@ class ReplicatorState(TypedDict):
     train_entrypoint: str        # e.g. "train.py"
     code_summary: str            # full LLM JSON output
 
-    # -- Phase 2: Environment --
+    # -- Phase 2: Environment setup --
     env_setup_log: str
     env_ready: bool
 
-    # -- Phase 3+: Experiment loop --
+    # -- Phase 3: Quick run --
+    quick_run_cmd: str           # command planned by LLM
+    quick_run_log: str           # combined stdout/stderr
+    quick_run_success: bool      # True if first step confirmed
+    diagnosis: str               # LLM error analysis (if failed)
+
+    # -- Phase 4+: Experiment loop (future) --
     experiments: Annotated[list[Experiment], operator.add]
     current_experiment_id: int
     heartbeat_count: int

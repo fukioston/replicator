@@ -45,6 +45,10 @@ def run_task(task_name: str, config: dict):
         "code_summary": "",
         "env_setup_log": "",
         "env_ready": False,
+        "quick_run_cmd": "",
+        "quick_run_log": "",
+        "quick_run_success": False,
+        "diagnosis": "",
         "experiments": [],
         "current_experiment_id": 0,
         "heartbeat_count": 0,
@@ -103,6 +107,31 @@ def run_task(task_name: str, config: dict):
                     "phase": "analyze_code",
                     "status": "done",
                     "introduction": (state.get("introduction") or "")[:200],
+                })
+
+            elif node == "setup_env":
+                upsert_task(workspace, task_name, {"phase": "setup_env", "status": "in_progress"})
+
+            elif node == "plan_quick_run":
+                console.print(f"[cyan]Quick run command:[/cyan] {state.get('quick_run_cmd', '')}")
+                upsert_task(workspace, task_name, {"phase": "plan_quick_run", "status": "in_progress"})
+
+            elif node == "execute_quick_run":
+                success = state.get("quick_run_success", False)
+                status = "done" if success else "failed"
+                console.print(f"\n[{'green' if success else 'red'}]{'✓ Run confirmed' if success else '✗ Run failed'}[/{'green' if success else 'red'}]")
+                upsert_task(workspace, task_name, {
+                    "phase": "execute_quick_run",
+                    "status": status,
+                    "quick_run_cmd": state.get("quick_run_cmd", ""),
+                    "quick_run_success": success,
+                })
+
+            elif node == "diagnose_error":
+                upsert_task(workspace, task_name, {
+                    "phase": "diagnose_error",
+                    "status": "failed",
+                    "diagnosis": (state.get("diagnosis") or "")[:500],
                 })
 
             elif node == "handle_error":

@@ -58,8 +58,12 @@ def show_task(workspace_dir: str, task_name: str):
     ]
     if t.get("introduction"):
         lines += ["", "**Introduction:**", t["introduction"]]
+    if t.get("quick_run_cmd"):
+        lines += ["", f"**Quick run cmd:** `{t['quick_run_cmd']}`"]
     if t.get("error"):
         lines += ["", f"**Error:** {t['error']}"]
+    if t.get("diagnosis"):
+        lines += ["", "**Diagnosis:**", t["diagnosis"]]
     console.print(Panel(Markdown("\n".join(lines)), title=f"Task: {task_name}"))
 
 
