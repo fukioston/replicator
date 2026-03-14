@@ -1,5 +1,6 @@
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
+from pathlib import Path
 
 from state import ReplicatorState
 from nodes.clone_and_read import clone_and_read
@@ -23,7 +24,10 @@ def handle_error(state: ReplicatorState) -> dict:
 
 # -- Graph --
 
-def build_graph() -> StateGraph:
+def build_graph(workspace_dir: str):
+    db_path = str(Path(workspace_dir).expanduser() / "replicator.db")
+    checkpointer = SqliteSaver.from_conn_string(db_path)
+
     g = StateGraph(ReplicatorState)
 
     g.add_node("clone_and_read", clone_and_read)
@@ -35,4 +39,4 @@ def build_graph() -> StateGraph:
     g.add_conditional_edges("analyze_code", route_after_analyze)
     g.add_edge("handle_error", END)
 
-    return g.compile(checkpointer=MemorySaver())
+    return g.compile(checkpointer=checkpointer)
