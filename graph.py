@@ -1,3 +1,4 @@
+import sqlite3
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 from pathlib import Path
@@ -26,7 +27,8 @@ def handle_error(state: ReplicatorState) -> dict:
 
 def build_graph(workspace_dir: str):
     db_path = str(Path(workspace_dir).expanduser() / "replicator.db")
-    checkpointer = SqliteSaver.from_conn_string(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
 
     g = StateGraph(ReplicatorState)
 
