@@ -18,10 +18,10 @@ Respond with JSON:
 }}
 
 Rules:
-- Maximum 8 files
+- Include all files that are genuinely important for understanding and reproducing the project — no arbitrary limit
 - Only include files that actually appear in the file tree
 - Prioritize: training entry point, model definition, config files, data loading
-- Skip: tests, docs, README (already provided)
+- Skip: tests, docs, README (already provided), utility/helper files that are not critical
 """
 
 
