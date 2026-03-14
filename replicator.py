@@ -9,6 +9,7 @@ from rich.panel import Panel
 
 from graph import build_graph
 from tasks import upsert_task
+from report import init_report, update_report
 
 console = Console()
 
@@ -81,6 +82,7 @@ def run_task(task_name: str, config: dict):
         # No checkpoint — fresh start
         console.print(Panel(f"[bold]Replicator[/bold]\nTask: {task_name}  |  Repo: {repo_url}", expand=False))
         upsert_task(workspace, task_name, {"status": "in_progress", "phase": "starting"})
+        init_report(workspace, task_name, repo_url)
         iterator = app.stream(_make_initial_state(task_name, repo_url, workspace, config), config=graph_config)
 
     # -- Stream nodes --
@@ -101,24 +103,45 @@ def run_task(task_name: str, config: dict):
 
             elif node == "analyze_code":
                 console.print(f"\n[green]✓ Analysis complete[/green]")
-                if state.get("introduction"):
-                    console.print(Panel(state["introduction"], title="Introduction"))
-                if state.get("file_breakdown"):
+                intro = state.get("introduction", "")
+                breakdown = state.get("file_breakdown") or []
+                plan = state.get("reproduction_plan") or []
+
+                if intro:
+                    console.print(Panel(intro, title="Introduction"))
+                if breakdown:
                     files_md = "\n\n".join(
                         f"**`{f['path']}`** — {f['role']}\n{f.get('description', '')}"
-                        for f in state["file_breakdown"]
+                        for f in breakdown
                     )
                     console.print(Panel(Markdown(files_md), title="File Breakdown"))
-                if state.get("reproduction_plan"):
+                if plan:
                     plan_md = "\n".join(
                         f"{s['step']}. **{s['action']}**" + (f"\n   `{s['command']}`" if s.get('command') else "")
-                        for s in state["reproduction_plan"]
+                        for s in plan
                     )
                     console.print(Panel(Markdown(plan_md), title="Reproduction Plan"))
+
+                # Write to report
+                if intro:
+                    update_report(workspace, task_name, "Introduction", intro)
+                if breakdown:
+                    bd_md = "\n".join(
+                        f"- **`{f['path']}`** — {f['role']}: {f.get('description', '')}"
+                        for f in breakdown
+                    )
+                    update_report(workspace, task_name, "File Breakdown", bd_md)
+                if plan:
+                    pl_md = "\n".join(
+                        f"{s['step']}. **{s['action']}**" + (f": `{s['command']}`" if s.get('command') else "")
+                        for s in plan
+                    )
+                    update_report(workspace, task_name, "Reproduction Plan", pl_md)
+
                 upsert_task(workspace, task_name, {
                     "phase": "analyze_code",
                     "status": "in_progress",
-                    "introduction": (state.get("introduction") or "")[:200],
+                    "introduction": (intro)[:200],
                 })
 
             elif node == "setup_env":
@@ -134,27 +157,41 @@ def run_task(task_name: str, config: dict):
             elif node == "execute_quick_run":
                 success = state.get("quick_run_success", False)
                 status = "done" if success else "failed"
+                cmd = state.get("quick_run_cmd", "")
+                result_line = f"**Command:** `{cmd}`\n\n**Result:** {'✓ Success — code confirmed running' if success else '✗ Failed'}"
+                update_report(workspace, task_name, "Quick Run", result_line)
                 upsert_task(workspace, task_name, {
                     "phase": "execute_quick_run",
                     "status": status,
-                    "quick_run_cmd": state.get("quick_run_cmd", ""),
+                    "quick_run_cmd": cmd,
                     "quick_run_success": success,
                 })
 
             elif node == "diagnose_error":
+                diagnosis = state.get("diagnosis", "")
+                if diagnosis:
+                    update_report(workspace, task_name, "Error Diagnosis", diagnosis)
                 upsert_task(workspace, task_name, {
                     "phase": "diagnose_error",
                     "status": "failed",
-                    "diagnosis": (state.get("diagnosis") or "")[:500],
+                    "diagnosis": (diagnosis)[:500],
                 })
 
             elif node == "handle_error":
-                console.print(f"\n[red]✗ Error[/red] in phase '{state.get('phase')}': {state.get('error')}")
+                error = state.get("error", "")
+                phase = state.get("phase", "")
+                console.print(f"\n[red]✗ Error[/red] in phase '{phase}': {error}")
+                update_report(workspace, task_name, "Error", f"**Phase:** {phase}\n\n{error}")
                 upsert_task(workspace, task_name, {
-                    "phase": state.get("phase", ""),
+                    "phase": phase,
                     "status": "failed",
-                    "error": state.get("error", ""),
+                    "error": error,
                 })
+
+        report_path = Path(workspace).expanduser() / task_name / "report.md"
+        if report_path.exists():
+            console.print(f"\n[dim]Report: {report_path}[/dim]")
+            console.print(f"[dim]View with: replicator report -n {task_name}[/dim]")
 
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted. Run again to resume.[/yellow]")

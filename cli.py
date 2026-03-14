@@ -78,6 +78,25 @@ def show(name: str = typer.Argument(..., help="Task name")):
 
 
 @app.command()
+def report(name: str = typer.Option(..., "-n", help="Task name")):
+    """Print the markdown report for a task."""
+    from setup_config import load_config
+    from pathlib import Path
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    config = load_config()
+    workspace = str(Path(config["workspace_dir"]).expanduser())
+    report_path = Path(workspace) / name / "report.md"
+
+    if not report_path.exists():
+        typer.echo(f"No report found for '{name}'. Run the task first.")
+        raise typer.Exit(1)
+
+    Console().print(Markdown(report_path.read_text(encoding="utf-8")))
+
+
+@app.command()
 def restart(
     name: str = typer.Option(..., "-n", help="Task name to restart"),
 ):

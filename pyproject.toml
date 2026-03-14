@@ -32,6 +32,7 @@ py-modules = [
     "state",
     "tasks",
     "setup_config",
+    "report",
 ]
 
 [tool.setuptools.packages.find]
