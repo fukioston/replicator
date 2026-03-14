@@ -16,8 +16,11 @@ from llm.prompts import ANALYZE_REPO_SYSTEM, ANALYZE_REPO_USER
 
 
 def analyze_code(state: ReplicatorState, config: RunnableConfig) -> dict:
-    llm = build_llm(config["configurable"]["replicator_config"])
+    replicator_config = config["configurable"]["replicator_config"]
+    llm = build_llm(replicator_config)
+    output_language = replicator_config.get("output_language", "English")
 
+    system = ANALYZE_REPO_SYSTEM.format(output_language=output_language)
     prompt = ANALYZE_REPO_USER.format(
         repo_url=state["repo_url"],
         readme=state["readme"] or "(no README found)",
@@ -26,7 +29,7 @@ def analyze_code(state: ReplicatorState, config: RunnableConfig) -> dict:
     )
 
     response = llm.invoke([
-        SystemMessage(content=ANALYZE_REPO_SYSTEM),
+        SystemMessage(content=system),
         HumanMessage(content=prompt),
     ])
 

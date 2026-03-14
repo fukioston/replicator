@@ -4,7 +4,7 @@ Given information about a GitHub repository, you will:
 2. Identify the key components of the codebase
 3. Create a concrete step-by-step reproduction plan
 
-Always respond in valid JSON."""
+Always respond in valid JSON. Write all text fields in {output_language}."""
 
 ANALYZE_REPO_USER = """Repository: {repo_url}
 

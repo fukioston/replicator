@@ -88,6 +88,14 @@ def run_setup() -> dict:
 
     config["llm_api_key"] = ask("API Key")
 
+    # Output language
+    print()
+    lang_choice = ask_choice(
+        "Output language for analysis reports?",
+        ["中文", "English", "日本語"],
+    )
+    config["output_language"] = lang_choice
+
     # Max iterations
     print()
     raw = ask("Max experiment iterations", default="5")
