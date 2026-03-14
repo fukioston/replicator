@@ -1,17 +1,19 @@
 # Replicator
 
+[English](./README.md) | [中文](./README-zh.md)
+
 > ⚠️ Work in progress. Not ready for use yet.
 
 > Give it a GitHub link. It figures out the rest.
 
-Replicator is an autonomous agent that takes an ML research paper repository and automatically clones it, understands the codebase, sets up the environment, reproduces the results, and iterates on experiments — all with minimal human intervention.
+Replicator is an autonomous agent that takes an ML research paper repository and automatically clones it, analyzes the codebase, sets up the environment, reproduces the results, and iterates on experiments — all with minimal human intervention.
 
 ```
-Input: GitHub URL + GPU machine
+Input: GitHub URL
         ↓
 ① Clone & read README / requirements / configs
         ↓
-② Understand code architecture & training pipeline
+② Analyze code architecture → generate introduction, file breakdown & reproduction plan
         ↓
 ③ Set up environment & dependencies
         ↓
@@ -25,7 +27,7 @@ Input: GitHub URL + GPU machine
 ## Motivation
 
 Reproducing ML papers is tedious:
-- Every repo has different dependencies, CUDA versions, data formats
+- Every repo has different dependencies, CUDA versions, and data formats
 - README instructions are often incomplete or outdated
 - Debugging environment issues takes hours before any real work begins
 - Iterating on experiments requires constant manual intervention
@@ -34,25 +36,25 @@ Replicator handles all of this autonomously.
 
 ## Features (Roadmap)
 
-- [ ] **Repo analysis** — parse README, requirements, configs, and code structure
+- [x] **Repo analysis** — clone repo, parse README, requirements, and file structure
+- [x] **Code understanding** — LLM generates introduction, per-file breakdown, and reproduction plan
 - [ ] **Environment setup** — auto-install dependencies, handle version conflicts
-- [ ] **Experiment runner** — submit training jobs via SSH, support `nohup` / `sbatch` / `torchrun`
+- [ ] **Experiment runner** — submit training jobs locally or via SSH (`nohup` / `sbatch` / `torchrun`)
 - [ ] **Job monitor** — heartbeat polling, detect completion or crash
 - [ ] **Result analysis** — parse logs, metrics, loss curves
 - [ ] **Experiment designer** — LLM-driven hyperparameter suggestions based on results
 - [ ] **Iteration loop** — automatically run the next experiment when current one finishes
 
-## Supported Models
-
-Replicator works with any Anthropic-compatible LLM:
+## Supported LLM Providers
 
 | Provider | Model |
 |----------|-------|
 | Anthropic | claude-sonnet-4-6 |
 | DeepSeek | deepseek-chat |
-| GLM (Zhipu) | glm-5 |
-| Kimi (Moonshot) | kimi-k2.5 |
+| GLM (Zhipu) | glm-4 |
+| Kimi (Moonshot) | moonshot-v1-8k |
 | MiniMax | MiniMax-M2.5 |
+| Any OpenAI-compatible API | custom |
 
 ## Quick Start
 
@@ -60,41 +62,45 @@ Replicator works with any Anthropic-compatible LLM:
 git clone https://github.com/fukioston/replicator
 cd replicator
 pip install -r requirements.txt
-cp .env.example .env  # fill in your API key and SSH config
 
-python replicator.py --repo https://github.com/author/paper-repo
+# First run will launch an interactive setup wizard
+python replicator.py --repo https://github.com/karpathy/micrograd
 ```
 
-## Configuration
+The setup wizard will ask you:
+- Where to run experiments (local or SSH remote)
+- Where to store cloned repos and outputs
+- Which LLM provider and API key to use
+- Output language for analysis reports (中文 / English / 日本語)
 
-```env
-# LLM
-ANTHROPIC_API_KEY=your_key
-ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic  # optional
-MODEL_ID=deepseek-chat
-
-# GPU machine
-SSH_HOST=your.gpu.server
-SSH_USER=username
-SSH_KEY_PATH=~/.ssh/id_rsa
+To re-run the setup wizard:
+```sh
+python replicator.py --repo <url> --setup
 ```
 
 ## Architecture
 
 ```
 replicator/
-├── agent/
-│   ├── loop.py          # core agent loop
-│   ├── tools.py         # tool definitions & handlers
-│   └── prompts.py       # system prompts per phase
-├── phases/
-│   ├── analyze.py       # repo analysis phase
-│   ├── setup.py         # environment setup phase
-│   ├── run.py           # experiment execution phase
-│   └── iterate.py       # result analysis & next experiment
+├── replicator.py        # CLI entry point + setup wizard trigger
+├── graph.py             # LangGraph graph definition and routing
+├── state.py             # ReplicatorState TypedDict
+├── setup_config.py      # interactive setup wizard
+├── nodes/
+│   ├── clone_and_read.py   # git clone + read README/requirements/file tree
+│   ├── analyze_code.py     # LLM: generate introduction, file breakdown, plan
+│   ├── setup_environment.py   # (coming soon)
+│   ├── submit_job.py          # (coming soon)
+│   ├── heartbeat_monitor.py   # (coming soon)
+│   ├── analyze_results.py     # (coming soon)
+│   └── design_experiment.py   # (coming soon)
 ├── remote/
-│   └── ssh.py           # SSH connection & job management
-└── replicator.py        # entry point
+│   ├── base.py          # abstract runner interface
+│   ├── local.py         # local subprocess runner
+│   └── ssh.py           # SSH runner (paramiko)
+└── llm/
+    ├── client.py         # build LLM client (Anthropic or OpenAI-compatible)
+    └── prompts.py        # system and user prompts
 ```
 
 ## License
