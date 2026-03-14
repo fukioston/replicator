@@ -59,15 +59,30 @@ def run_setup() -> dict:
     print()
     llm_choice = ask_choice(
         "Which LLM provider?",
-        ["DeepSeek", "Anthropic (Claude)", "Other (OpenAI-compatible)"],
+        ["DeepSeek", "Anthropic (Claude)", "GLM (Zhipu)", "Kimi (Moonshot)", "MiniMax", "Other (OpenAI-compatible)"],
     )
     if llm_choice == "DeepSeek":
+        config["llm_provider"] = "openai_compatible"
         config["llm_base_url"] = "https://api.deepseek.com/v1"
         config["llm_model"] = "deepseek-chat"
     elif llm_choice == "Anthropic (Claude)":
-        config["llm_base_url"] = "https://api.anthropic.com/v1"
-        config["llm_model"] = "claude-sonnet-4-6"
+        config["llm_provider"] = "anthropic"
+        config["llm_base_url"] = ""
+        config["llm_model"] = ask("Model ID", default="claude-sonnet-4-6")
+    elif llm_choice == "GLM (Zhipu)":
+        config["llm_provider"] = "openai_compatible"
+        config["llm_base_url"] = "https://open.bigmodel.cn/api/paas/v4"
+        config["llm_model"] = "glm-4"
+    elif llm_choice == "Kimi (Moonshot)":
+        config["llm_provider"] = "openai_compatible"
+        config["llm_base_url"] = "https://api.moonshot.cn/v1"
+        config["llm_model"] = "moonshot-v1-8k"
+    elif llm_choice == "MiniMax":
+        config["llm_provider"] = "openai_compatible"
+        config["llm_base_url"] = "https://api.minimaxi.com/v1"
+        config["llm_model"] = "MiniMax-M2.5"
     else:
+        config["llm_provider"] = "openai_compatible"
         config["llm_base_url"] = ask("API Base URL")
         config["llm_model"] = ask("Model ID")
 
