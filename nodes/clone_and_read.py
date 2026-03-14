@@ -7,7 +7,10 @@ import os
 import subprocess
 from pathlib import Path
 
+from rich.console import Console
 from state import ReplicatorState
+
+console = Console()
 
 
 def clone_and_read(state: ReplicatorState) -> dict:
@@ -19,12 +22,15 @@ def clone_and_read(state: ReplicatorState) -> dict:
     # Clone (skip if already exists)
     if not local_path.exists():
         local_path.parent.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(
-            ["git", "clone", "--depth", "1", repo_url, str(local_path)],
-            capture_output=True, text=True,
-        )
+        with console.status(f"[cyan]Cloning {repo_url}...[/cyan]"):
+            result = subprocess.run(
+                ["git", "clone", "--depth", "1", repo_url, str(local_path)],
+                capture_output=True, text=True,
+            )
         if result.returncode != 0:
             return {"error": f"git clone failed: {result.stderr}", "phase": "clone"}
+    else:
+        console.print(f"[dim]Already cloned, using existing: {local_path}[/dim]")
 
     # Read README
     readme = ""

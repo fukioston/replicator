@@ -1,6 +1,7 @@
 """
 analyze_code: LLM analyzes the repo and produces:
 - introduction: what this project is
+- file_breakdown: per-file explanation
 - preview: key files and architecture
 - reproduction_plan: step-by-step plan
 - train_entrypoint: path to training script
@@ -9,10 +10,15 @@ analyze_code: LLM analyzes the repo and produces:
 import json
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
+from rich.console import Console
+from rich.live import Live
+from rich.text import Text
 
 from state import ReplicatorState
 from llm.client import build_llm
 from llm.prompts import ANALYZE_REPO_SYSTEM, ANALYZE_REPO_USER
+
+console = Console()
 
 
 def analyze_code(state: ReplicatorState, config: RunnableConfig) -> dict:
@@ -28,14 +34,21 @@ def analyze_code(state: ReplicatorState, config: RunnableConfig) -> dict:
         requirements=state["requirements"] or "(no requirements file found)",
     )
 
-    response = llm.invoke([
-        SystemMessage(content=system),
-        HumanMessage(content=prompt),
-    ])
+    # Stream tokens and display live
+    full_text = ""
+    console.print("\n[bold cyan]Analyzing repository...[/bold cyan]")
+    with Live(Text("", style="dim"), console=console, refresh_per_second=15) as live:
+        for chunk in llm.stream([
+            SystemMessage(content=system),
+            HumanMessage(content=prompt),
+        ]):
+            full_text += chunk.content
+            # Show last 300 chars so terminal doesn't flood
+            preview = full_text[-300:].lstrip()
+            live.update(Text(preview, style="dim"))
 
     try:
-        # Strip markdown code fences if present
-        text = response.content.strip()
+        text = full_text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0]
         data = json.loads(text)
