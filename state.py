@@ -14,18 +14,22 @@ class Experiment(TypedDict):
 class ReplicatorState(TypedDict):
     # -- Input --
     repo_url: str
+    workspace_dir: str           # local workspace root (~/replicator-workspace)
     ssh_host: str
     ssh_user: str
     ssh_key_path: str
-    remote_workdir: str          # e.g. ~/replicator-workspace/<repo-name>
+    remote_workdir: str          # remote experiment dir (SSH mode)
 
     # -- Phase 1: Repo analysis --
-    repo_local_path: str         # local clone path (under ~/replicator-workspace)
+    repo_local_path: str         # local clone path
     readme: str
     requirements: str
     file_tree: str
+    introduction: str            # LLM: what this project is
+    preview: dict                # LLM: key files and architecture
+    reproduction_plan: list      # LLM: step-by-step plan
     train_entrypoint: str        # e.g. "train.py"
-    code_summary: str
+    code_summary: str            # full LLM JSON output
 
     # -- Phase 2: Environment --
     env_setup_log: str
