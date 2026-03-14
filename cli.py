@@ -78,6 +78,26 @@ def show(name: str = typer.Argument(..., help="Task name")):
 
 
 @app.command()
+def restart(
+    name: str = typer.Option(..., "-n", help="Task name to restart"),
+):
+    """Restart a task from scratch (creates a new run, preserving history)."""
+    from setup_config import load_config
+    from tasks import load_tasks, increment_run_id
+
+    config = load_config()
+    workspace = str(Path(config["workspace_dir"]).expanduser())
+
+    if name not in load_tasks(workspace):
+        typer.echo(f"Task '{name}' not found.")
+        raise typer.Exit(1)
+
+    new_id = increment_run_id(workspace, name)
+    typer.echo(f"✓ Task '{name}' reset (run #{new_id})")
+    typer.echo(f"  Run with: replicator run -n {name}")
+
+
+@app.command()
 def config():
     """Re-run the setup wizard."""
     from setup_config import run_setup

@@ -30,6 +30,29 @@ def save_tasks(workspace_dir: str, tasks: dict):
     _tasks_file(workspace_dir).write_text(json.dumps(tasks, ensure_ascii=False, indent=2))
 
 
+def get_run_id(workspace_dir: str, task_name: str) -> int:
+    tasks = load_tasks(workspace_dir)
+    return tasks.get(task_name, {}).get("run_id", 0)
+
+
+def increment_run_id(workspace_dir: str, task_name: str) -> int:
+    tasks = load_tasks(workspace_dir)
+    if task_name not in tasks:
+        return 0
+    new_id = tasks[task_name].get("run_id", 0) + 1
+    tasks[task_name].update({
+        "run_id": new_id,
+        "status": "pending",
+        "phase": "",
+        "error": "",
+        "diagnosis": "",
+        "quick_run_success": False,
+    })
+    tasks[task_name]["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_tasks(workspace_dir, tasks)
+    return new_id
+
+
 def upsert_task(workspace_dir: str, repo_name: str, updates: dict):
     tasks = load_tasks(workspace_dir)
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
